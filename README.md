@@ -119,7 +119,7 @@ Generates ZEN-compatible RXC files.
 ---
 
 # 6. Script 5 — Export STN File
-**File:** `5_Line_into_StnFile.py`
+**File:** `5_Export_StnFile.py`
 
 Generates a `.stn` file for modeling/inversion.
 
