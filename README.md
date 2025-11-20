@@ -7,6 +7,17 @@ This document describes the complete workflow for generating **ZEN setups**, **G
 
 The objective is to ensure a **fully reproducible**, field-friendly workflow for survey planning and data acquisition.
 
+# Workflow Summary
+
+1. Draw line start points in QGIS  
+2. Create Setup Waypoints along lines
+3. Build template in web builder → save `.stt`  
+4. Run **Apply Template to Setup Waypoints** → electrodes/antennas  
+5. Export:
+   - **GPX** for field navigation  
+   - **RXC (MT/IP)** for ZEN  
+6. Export **STN** if needed for inversion
+
 ---
 
 # 1. ZEN Template Builder (Web Interface)
@@ -131,20 +142,7 @@ Generates a `.stn` file for modeling/inversion.
 
 ---
 
-# 7. Full Workflow Summary
-
-1. Draw line start points in QGIS  
-2. Run **Create Setups Along Line**  
-3. Build template in web builder → save `.stt`  
-4. Run **Apply Template to Waypoints** → electrodes/antennas  
-5. Export:
-   - **GPX** for field navigation  
-   - **RXC (MT/IP)** for ZEN  
-6. Export **STN** if needed for inversion
-
----
-
-# 8. Benefits
+# 7. Benefits
 
 - Consistent geometry from planning → acquisition → inversion  
 - Fully reproducible  
