@@ -1,4 +1,4 @@
-# ZEN Setup Workflow — Full Documentation
+# Survey Setup Workflow — Documentation
 
 This document describes the complete workflow for generating **ZEN setups**, **GPX navigation files**, **RXC acquisition files**, and **STN station files**, using a combination of:
 
