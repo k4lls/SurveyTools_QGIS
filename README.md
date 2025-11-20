@@ -34,10 +34,10 @@ This `.stt` file is used by QGIS to place electrodes and antennas in UTM.
 
 ---
 
-# 2. Script 1 — Create ZEN Setups Along a Line
+# 2. Script 1 — Create Setup Waypoints Along a Line
 **File:** `1_Create_waypoints_along_line.py`
 
-Generates evenly spaced ZEN setup stations along a line.
+Generates evenly spaced setup waypoints along a line.
 
 ### Input
 - One point per line
@@ -58,7 +58,7 @@ Generates evenly spaced ZEN setup stations along a line.
 # 3. Script 2 — Apply Template to Waypoints
 **File:** `2_Apply_Template_to_Waypoints.py`
 
-Transforms ZEN setup points into real electrode and antenna coordinates in **UTM**.
+Generate a new template of real electrode and antenna coordinates in **UTM** at each setup waypoints.
 
 ### Output layers
 1. **Electrode/Antenna points**
