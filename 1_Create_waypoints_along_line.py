@@ -49,7 +49,7 @@ class BuildZenSetupsSimple(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return (
-            "Generate N ZEN setups starting from each waypoint.\n\n"
+            "Generate N ZEN setups (RX locations) starting from each waypoint.\n\n"
             "Each input point defines one line of setups.\n\n"
             "Parameters:\n"
             "- Number of setups (N)\n"
@@ -57,11 +57,16 @@ class BuildZenSetupsSimple(QgsProcessingAlgorithm):
             "- Offset of first setup from waypoint (m)\n"
             "- Azimuth (deg from North clockwise)\n"
             "- First STN and STN step\n\n"
-            "Output fields:\n"
-            "  line_id : id of waypoint source (one line per waypoint)\n"
-            "  STN     : station id (used for labels)\n"
-            "  stn_s   : chainage from waypoint (m)\n"
-            "  az      : azimuth used (deg)\n"
+            "Output fields (layer: RX_locations):\n"
+            "  line_id  : id of waypoint source (one line per waypoint)\n"
+            "  STN      : station id (used for labels)\n"
+            "  stn_s    : chainage from waypoint (m)\n"
+            "  az       : azimuth used (deg)\n"
+            "  dist_prev: distance from previous setup on the same line (m)\n"
+            "  E / N    : easting / northing of the generated point (layer CRS)\n"
+            "\n"
+            "CRS requirement:\n"
+            "  Input layer must be in UTM (EPSG:326xx or EPSG:327xx).\n"
         )
 
     def initAlgorithm(self, config=None):
@@ -69,7 +74,7 @@ class BuildZenSetupsSimple(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSource(
                 self.INPUT,
-                "Start waypoints (points, projected CRS)",
+                "Start waypoints (points, projected UTM CRS)",
                 [QgsProcessing.TypeVectorPoint],
             )
         )
@@ -134,7 +139,7 @@ class BuildZenSetupsSimple(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT,
-                "Generated setups",
+                "RX_locations",
                 QgsProcessing.TypeVectorPoint,
             )
         )
@@ -158,9 +163,20 @@ class BuildZenSetupsSimple(QgsProcessingAlgorithm):
         if offset0 < 0:
             raise QgsProcessingException("First setup offset must be >= 0.")
 
+        # --- CRS safety check: enforce UTM only ---
         crs = source.sourceCrs()
-        if crs.isGeographic():
-            raise QgsProcessingException("Reproject input layer to UTM (projected CRS) first.")
+        if not crs.isValid():
+            raise QgsProcessingException("Input layer CRS is invalid.")
+
+        authid = crs.authid()
+        # Accept only EPSG:326xx (UTM North) and EPSG:327xx (UTM South)
+        if not (authid.startswith("EPSG:326") or authid.startswith("EPSG:327")):
+            raise QgsProcessingException(
+                f"ERROR: The input layer CRS is {authid}, which is NOT UTM.\n"
+                "Distances will be wrong in non-UTM projections (e.g. EPSG:4326 or EPSG:3857).\n"
+                "→ Please reproject your layer to UTM before running this tool.\n"
+                "Accepted CRS: EPSG:326xx (UTM North) or EPSG:327xx (UTM South)."
+            )
 
         feats = list(source.getFeatures())
         if not feats:
@@ -177,6 +193,9 @@ class BuildZenSetupsSimple(QgsProcessingAlgorithm):
         fields.append(QgsField("STN", QVariant.Int))
         fields.append(QgsField("stn_s", QVariant.Double))
         fields.append(QgsField("az", QVariant.Double))
+        fields.append(QgsField("dist_prev", QVariant.Double))
+        fields.append(QgsField("E", QVariant.Double))
+        fields.append(QgsField("N", QVariant.Double))
 
         sink, out_id = self.parameterAsSink(
             parameters,
@@ -199,11 +218,23 @@ class BuildZenSetupsSimple(QgsProcessingAlgorithm):
 
             current_stn = stn_start_param
 
+            # Track previous point for distance along the same line
+            prev_x = None
+            prev_y = None
+
             for k in range(num_setups):
 
-                s = offset0 + k * spacing
+                s = offset0 + k * spacing  # chainage from waypoint
                 x = x0 + s * dirE
                 y = y0 + s * dirN
+
+                # Distance from previous setup
+                if prev_x is None:
+                    dist_prev = 0.0
+                else:
+                    dist_prev = math.hypot(x - prev_x, y - prev_y)
+
+                prev_x, prev_y = x, y
 
                 f_out = QgsFeature(fields)
                 f_out.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(x, y)))
@@ -212,12 +243,15 @@ class BuildZenSetupsSimple(QgsProcessingAlgorithm):
                 f_out["STN"] = current_stn
                 f_out["stn_s"] = float(s)
                 f_out["az"] = float(az)
+                f_out["dist_prev"] = float(dist_prev)
+                f_out["E"] = float(x)
+                f_out["N"] = float(y)
 
                 sink.addFeature(f_out, QgsFeatureSink.FastInsert)
 
                 current_stn += stn_step
 
-        # --- Enable STN labeling on the output layer ---
+        # Enable STN labeling on the output layer
         out_layer = context.getMapLayer(out_id)
         if out_layer is not None:
             settings = QgsPalLayerSettings()
@@ -226,7 +260,7 @@ class BuildZenSetupsSimple(QgsProcessingAlgorithm):
             settings.enabled = True
 
             text_format = QgsTextFormat()
-            text_format.setSize(9)          # size in points
+            text_format.setSize(9)
             buffer = QgsTextBufferSettings()
             buffer.setEnabled(True)
             buffer.setSize(1)
